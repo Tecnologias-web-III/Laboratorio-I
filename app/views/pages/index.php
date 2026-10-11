@@ -1,3 +1,4 @@
+<?php /** @var array<string, mixed> $data */ ?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
