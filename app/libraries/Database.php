@@ -74,5 +74,9 @@ class Database{
 		$this->execute();
 		return $this->coman->rowCount();
 	}
+
+	public function lastInsertId(){
+		return $this->conex->lastInsertId();
+	}
 }
 ?>
