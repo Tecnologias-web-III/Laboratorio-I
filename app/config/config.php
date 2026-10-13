@@ -3,7 +3,7 @@
 	define('db_Servidor' , '127.0.0.1;port=3306');
 	define('db_Basedato' , 'Northwind');
 	define('db_Usuario'  , 'root');
-	define('db_Contra'   , '1234');
+	define('db_Contra'   , 'utn123');
 	
 	
 	// Ruta absoluta
