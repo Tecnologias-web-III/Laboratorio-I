@@ -2,6 +2,7 @@
 class Categories extends Controller {
 
     private $categoryModel;
+    private $maxImageSize = 2097152;
 
     public function __construct() {
         // Redirigir a login si no está autenticado
@@ -32,20 +33,23 @@ class Categories extends Controller {
                 'description' => trim($_POST['txtDescrip']),
                 'imagen' => null,
                 'mime' => null,
-                'name_err' => ''
+                'name_err' => '',
+                'image_err' => ''
             ];
 
             if (empty($data['name'])) {
                 $data['name_err'] = 'Por favor ingrese el nombre de la categoría';
             }
 
-            // Procesar la imagen si fue subida
-            if (isset($_FILES['txtArchi']) && $_FILES['txtArchi']['error'] === UPLOAD_ERR_OK) {
-                $data['imagen'] = file_get_contents($_FILES['txtArchi']['tmp_name']);
-                $data['mime'] = $_FILES['txtArchi']['type'];
+            // Se obtiene y valida la imagen seleccionada
+            if (isset($_FILES['txtArchi'])) {
+                $imageData = $this->validateImage($_FILES['txtArchi']);
+                $data['imagen'] = $imageData['imagen'];
+                $data['mime'] = $imageData['mime'];
+                $data['image_err'] = $imageData['error'];
             }
 
-            if (empty($data['name_err'])) {
+            if (empty($data['name_err']) && empty($data['image_err'])) {
                 if ($this->categoryModel->addCategory($data)) {
                     header('Location: ' . urlRoot . '/categories');
                     exit();
@@ -59,7 +63,8 @@ class Categories extends Controller {
             $data = [
                 'name' => '',
                 'description' => '',
-                'name_err' => ''
+                'name_err' => '',
+                'image_err' => ''
             ];
             $this->view('categories/inscateg', $data);
         }
@@ -76,19 +81,23 @@ class Categories extends Controller {
                 'description' => trim($_POST['txtDescrip']),
                 'imagen' => null,
                 'mime' => null,
-                'name_err' => ''
+                'name_err' => '',
+                'image_err' => ''
             ];
 
             if (empty($data['name'])) {
                 $data['name_err'] = 'El nombre no puede estar vacío';
             }
 
-            if (isset($_FILES['txtArchi']) && $_FILES['txtArchi']['error'] === UPLOAD_ERR_OK) {
-                $data['imagen'] = file_get_contents($_FILES['txtArchi']['tmp_name']);
-                $data['mime'] = $_FILES['txtArchi']['type'];
+            // Se cambia la imagen solamente si el usuario selecciona otra
+            if (isset($_FILES['txtArchi'])) {
+                $imageData = $this->validateImage($_FILES['txtArchi']);
+                $data['imagen'] = $imageData['imagen'];
+                $data['mime'] = $imageData['mime'];
+                $data['image_err'] = $imageData['error'];
             }
 
-            if (empty($data['name_err'])) {
+            if (empty($data['name_err']) && empty($data['image_err'])) {
                 if ($this->categoryModel->updateCategory($data)) {
                     header('Location: ' . urlRoot . '/categories');
                     exit();
@@ -105,7 +114,8 @@ class Categories extends Controller {
                 'name' => $category->CategoryName,
                 'description' => $category->Description,
                 'has_image' => !empty($category->Imagen),
-                'name_err' => ''
+                'name_err' => '',
+                'image_err' => ''
             ];
             $this->view('categories/modcateg', $data);
         }
@@ -114,8 +124,11 @@ class Categories extends Controller {
     // Método para servir la imagen BLOB directamente con sus cabeceras HTTP
     public function image($id) {
         $category = $this->categoryModel->getCategoryById($id);
-        if ($category && !empty($category->Imagen)) {
+        $allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+
+        if ($category && !empty($category->Imagen) && in_array($category->Mime, $allowedTypes, true)) {
             header('Content-Type: ' . $category->Mime);
+            header('X-Content-Type-Options: nosniff');
             echo $category->Imagen;
             exit();
         } else {
@@ -124,6 +137,47 @@ class Categories extends Controller {
             echo '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" fill="gray" class="bi bi-image" viewBox="0 0 16 16"><path d="M6.002 5.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z"/><path d="M2.002 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2h-12zm12 1a1 1 0 0 1 1 1v6.5l-3.777-1.947a.5.5 0 0 0-.577.093l-3.71 3.71-2.66-1.772a.5.5 0 0 0-.63.062L1.002 12V3a1 1 0 0 1 1-1h12z"/></svg>';
             exit();
         }
+    }
+
+    // Se verifica que el archivo seleccionado sea una imagen valida
+    private function validateImage($file) {
+        $result = [
+            'imagen' => null,
+            'mime' => null,
+            'error' => ''
+        ];
+
+        if ($file['error'] === UPLOAD_ERR_NO_FILE) {
+            return $result;
+        }
+
+        if ($file['error'] !== UPLOAD_ERR_OK) {
+            $result['error'] = 'No se pudo cargar la imagen. Intente nuevamente.';
+            return $result;
+        }
+
+        if ($file['size'] > $this->maxImageSize) {
+            $result['error'] = 'La imagen no debe superar los 2 MB.';
+            return $result;
+        }
+
+        $imageInfo = @getimagesize($file['tmp_name']);
+        $allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+
+        if ($imageInfo === false || !in_array($imageInfo['mime'], $allowedTypes, true)) {
+            $result['error'] = 'Seleccione una imagen valida en formato JPG, PNG, GIF o WEBP.';
+            return $result;
+        }
+
+        $imageContent = file_get_contents($file['tmp_name']);
+        if ($imageContent === false) {
+            $result['error'] = 'No se pudo leer la imagen seleccionada.';
+            return $result;
+        }
+
+        $result['imagen'] = $imageContent;
+        $result['mime'] = $imageInfo['mime'];
+        return $result;
     }
 
     // Eliminar categoría

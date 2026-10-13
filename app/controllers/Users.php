@@ -91,6 +91,8 @@ class Users extends Controller {
                 $data['userError'] = 'El nombre del usuario es obligatorio';
             }elseif(!preg_match($validaNombre, $data['usuario'])){
                 $data['userError'] = 'El nombre de usuario solo puede contener letras';
+            }elseif($this->userModel->userExists($data['usuario'])){
+                $data['userError'] = 'Este nombre de usuario ya está registrado';
             }
 
             //validate password data
@@ -133,7 +135,7 @@ class Users extends Controller {
 
     public function createSession($user){
         $_SESSION['autenticado'] = 'SI';
-        $_SESSION['usuario'] = $user->nombre;
+        $_SESSION['usuario'] = $user->usuario;
         header('location: ' . urlRoot . '/pages/index');
     }
 
