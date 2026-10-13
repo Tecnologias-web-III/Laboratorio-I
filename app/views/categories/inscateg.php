@@ -30,7 +30,18 @@
 
 					<div>
 						<label for="txtArchi" class="block text-sm font-semibold text-slate-700 mb-1">Imagen (Guardada en BD)</label>
-						<input id="txtArchi" type="file" name="txtArchi" accept="image/*" class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+						<input id="txtArchi" type="file" name="txtArchi" accept="image/jpeg,image/png,image/gif,image/webp" class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+						<p class="mt-1 text-xs text-slate-500">Formatos permitidos: JPG, PNG, GIF o WEBP. Máximo 2 MB.</p>
+						<?php if(!empty($data['image_err'])): ?>
+							<span class="text-xs text-rose-500"><?php echo htmlspecialchars($data['image_err'], ENT_QUOTES, 'UTF-8'); ?></span>
+						<?php endif; ?>
+					</div>
+
+					<div id="previewContainer" class="hidden">
+						<label class="block text-sm font-semibold text-slate-700 mb-1">Vista Previa</label>
+						<div class="w-40 h-40 rounded-lg border-2 border-dashed border-slate-300 overflow-hidden flex items-center justify-center bg-slate-50">
+							<img id="imgSalida" class="w-full h-full object-cover" alt="Vista previa de la imagen seleccionada">
+						</div>
 					</div>
 
 					<div class="flex justify-end gap-3 pt-4">
@@ -40,6 +51,25 @@
 				</form>
 			</div>
 		</main>
+
+		<script>
+			// Se muestra una vista previa de la imagen
+			document.getElementById('txtArchi').addEventListener('change', function(e) {
+				const file = e.target.files[0];
+				const preview = document.getElementById('previewContainer');
+
+				if (file && file.type.match('image.*')) {
+					const reader = new FileReader();
+					reader.onload = function(e) {
+						document.getElementById('imgSalida').src = e.target.result;
+						preview.classList.remove('hidden');
+					};
+					reader.readAsDataURL(file);
+				} else {
+					preview.classList.add('hidden');
+				}
+			});
+		</script>
 
 		<?php require_once(appRoot . '/views/includes/pie.php'); ?>
 	</div>

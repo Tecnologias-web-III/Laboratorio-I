@@ -23,25 +23,32 @@
                     </div>
 
                     <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1">Nombre</label>
-                        <input type="text" name="txtNombre" value="<?php echo htmlspecialchars($data['name']); ?>" class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none" required>
+                        <label for="txtNombre" class="block text-sm font-semibold text-slate-700 mb-1">Nombre</label>
+                        <input id="txtNombre" type="text" name="txtNombre" value="<?php echo htmlspecialchars($data['name'], ENT_QUOTES, 'UTF-8'); ?>" class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none" required>
+                        <?php if(!empty($data['name_err'])): ?>
+                            <span class="text-xs text-rose-500"><?php echo htmlspecialchars($data['name_err'], ENT_QUOTES, 'UTF-8'); ?></span>
+                        <?php endif; ?>
                     </div>
 
                     <div>
                         <label class="block text-sm font-semibold text-slate-700 mb-1">Descripción</label>
-                        <textarea name="txtDescrip" rows="3" class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"><?php echo htmlspecialchars($data['description']); ?></textarea>
+                        <textarea name="txtDescrip" rows="3" class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"><?php echo htmlspecialchars($data['description'], ENT_QUOTES, 'UTF-8'); ?></textarea>
                     </div>
 
                     <div>
                         <label class="block text-sm font-semibold text-slate-700 mb-1">Cambiar Imagen</label>
-                        <input type="file" name="txtArchi" id="txtArchi" accept="image/*" class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+                        <input type="file" name="txtArchi" id="txtArchi" accept="image/jpeg,image/png,image/gif,image/webp" class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+                        <p class="mt-1 text-xs text-slate-500">Formatos permitidos: JPG, PNG, GIF o WEBP. Máximo 2 MB.</p>
+                        <?php if(!empty($data['image_err'])): ?>
+                            <span class="text-xs text-rose-500"><?php echo htmlspecialchars($data['image_err'], ENT_QUOTES, 'UTF-8'); ?></span>
+                        <?php endif; ?>
                     </div>
                 </div>
 
                 <div class="flex flex-col items-center justify-start space-y-2">
                     <label class="block text-sm font-semibold text-slate-700">Vista Previa</label>
                     <div class="w-40 h-40 rounded-lg border-2 border-dashed border-slate-300 overflow-hidden flex items-center justify-center bg-slate-50">
-                        <img id="imgSalida" src="<?php echo urlRoot; ?>/categories/image/<?php echo $data['id']; ?>" class="w-full h-full object-cover">
+                        <img id="imgSalida" src="<?php echo urlRoot; ?>/categories/image/<?php echo $data['id']; ?>" class="w-full h-full object-cover" alt="Imagen de la categoría">
                     </div>
                 </div>
 
@@ -54,6 +61,7 @@
     </main>
 
     <script>
+        // Se muestra una vista previa de la imagen
         document.getElementById('txtArchi').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (file && file.type.match('image.*')) {
