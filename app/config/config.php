@@ -1,7 +1,7 @@
 <?php
     // Conexion local de XAMPP
     define('db_Servidor' , '127.0.0.1;port=3307');
-    define('db_Basedato' , 'prueba');
+    define('db_Basedato' , 'NorthWind');
     define('db_Usuario'  , 'root');
     define('db_Contra'   , 'Yugrant@13');
     
