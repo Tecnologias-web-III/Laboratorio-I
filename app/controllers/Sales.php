@@ -17,10 +17,12 @@ class Sales extends Controller {
             'products' => $this->saleModel->getProducts(),
             'cart' => $_SESSION['sale_cart'] ?? [],
             'selected_customer' => $_SESSION['sale_customer'] ?? '',
-            'error' => $_SESSION['sale_error'] ?? ''
+            'error' => $_SESSION['sale_error'] ?? '',
+            'success' => $_SESSION['sale_success'] ?? ''
         ];
 
         unset($_SESSION['sale_error']);
+        unset($_SESSION['sale_success']);
 
         $this->view('sales/index', $data);
     }
@@ -97,8 +99,8 @@ class Sales extends Controller {
         if ($orderId) {
             unset($_SESSION['sale_cart']);
             unset($_SESSION['sale_customer']);
-            $_SESSION['sale_last_order'] = $orderId;
-            header('Location: ' . urlRoot . '/sales/receipt/' . $orderId);
+            $_SESSION['sale_success'] = 'La venta se registró correctamente.';
+            header('Location: ' . urlRoot . '/sales/index');
             exit();
         }
 
@@ -107,24 +109,5 @@ class Sales extends Controller {
         exit();
     }
 
-    public function receipt($orderId = null) {
-        $order = $this->saleModel->getOrderSummary((int)$orderId);
-        $this->view('sales/receipt', ['order' => $order]);
-    }
-
-    public function document() {
-        $file = appRoot . '/public/documento.pdf';
-
-        if (!file_exists($file)) {
-            $_SESSION['sale_error'] = 'El archivo PDF no está disponible en este momento.';
-            header('Location: ' . urlRoot . '/sales/index');
-            exit();
-        }
-
-        header('Content-Type: application/pdf');
-        header('Content-Disposition: attachment; filename="documento.pdf"');
-        readfile($file);
-        exit();
-    }
 }
 ?>
