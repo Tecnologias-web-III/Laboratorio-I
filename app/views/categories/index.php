@@ -42,7 +42,7 @@
                                 <img src="<?php echo urlRoot; ?>/categories/image/<?php echo $cat->CategoryID; ?>" class="w-12 h-12 object-cover rounded-md shadow-sm border border-slate-200" alt="Category Image">
                             </td>
                             <td class="px-6 py-4 font-mono text-indigo-600 font-semibold">
-                                #<?php echo $cat->CategoryID; ?>
+                             <a href="<?php echo urlRoot; ?>/products/index/<?php echo $cat->CategoryID; ?>" class="hover:underline">#<?php echo $cat->CategoryID; ?></a>
                             </td>
                             <td class="px-6 py-4 font-medium text-slate-800">
                                 <?php echo htmlspecialchars($cat->CategoryName); ?>
