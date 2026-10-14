@@ -1,6 +1,7 @@
 <?php
 class Sale {
     private $db;
+    private $error = '';
 
     public function __construct() {
         $this->db = new Database();
@@ -38,53 +39,132 @@ class Sale {
         }
     }
 
+    // Mensaje de error entendible para mostrar al usuario (vacio si no hubo error)
+    public function getError() {
+        return $this->error;
+    }
+
+    // Guarda la venta completa (encabezado + detalle + rebaja de stock) en UNA transaccion:
+    // o se guarda todo, o no se guarda nada. Devuelve el OrderID o false.
     public function createOrder($customerId, $cart) {
+        $this->error = '';
+
         if (empty($customerId) || empty($cart)) {
+            $this->error = 'Debe seleccionar un cliente y al menos un producto.';
             return false;
         }
 
-        $total = 0.0;
-        foreach ($cart as $item) {
-            $quantity = (int)($item['quantity'] ?? 0);
-            $price = (float)($item['product']->UnitPrice ?? 0);
-            if ($quantity > 0 && $price > 0) {
-                $total += $price * $quantity;
-            }
-        }
-
         try {
-            $orderDate = date('Y-m-d H:i:s');
-            $this->db->query('INSERT INTO orders (CustomerID, OrderDate, RequiredDate, Freight) VALUES (:customer, :orderDate, DATE_ADD(:orderDate, INTERVAL 7 DAY), :freight)');
-            $this->db->bind(':customer', $customerId);
-            $this->db->bind(':orderDate', $orderDate);
-            $this->db->bind(':freight', number_format((float)$total * 0.05, 2, '.', ''));
+            $this->db->beginTransaction();
 
-            if (!$this->db->execute()) {
-                return false;
+            // Cliente: orders exige ShipName/ShipAddress/ShipCity/ShipCountry (NOT NULL),
+            // se copian desde los datos del cliente.
+            $this->db->query('SELECT CompanyName, Address, City, Region, PostalCode, Country
+                              FROM customers WHERE CustomerID = :id');
+            $this->db->bind(':id', $customerId);
+            $customer = $this->db->singleRow();
+            if (!$customer) {
+                throw new RuntimeException('El cliente seleccionado no existe.');
             }
 
-            $orderId = $this->db->lastInsertId();
+            // orders.EmployeeID y orders.ShipVia son obligatorios y llaves foraneas:
+            // en la venta de carrito se usa el primer empleado y el primer transportista.
+            $this->db->query('SELECT MIN(EmployeeID) AS id FROM employees');
+            $employeeId = (int)($this->db->singleRow()->id ?? 0);
+            $this->db->query('SELECT MIN(ShipperID) AS id FROM shippers');
+            $shipperId = (int)($this->db->singleRow()->id ?? 0);
+            if (!$employeeId || !$shipperId) {
+                throw new RuntimeException('Faltan empleados o transportistas en la base de datos.');
+            }
 
+            // Se vuelve a leer cada producto (con bloqueo) para usar el precio y el stock reales,
+            // no los que se guardaron en la sesion cuando se agrego al carrito.
+            $lines = [];
+            $total = 0.0;
             foreach ($cart as $item) {
-                $product = $item['product'] ?? null;
-                $quantity = (int)($item['quantity'] ?? 0);
-                if (!$product || $quantity <= 0) {
+                $productId = (int)($item['product']->ProductID ?? 0);
+                $quantity  = (int)($item['quantity'] ?? 0);
+                if ($productId <= 0 || $quantity <= 0) {
                     continue;
                 }
 
-                $this->db->query('INSERT INTO `order details` (OrderID, ProductID, UnitPrice, Quantity, Discount) VALUES (:orderId, :productId, :price, :quantity, 0)');
-                $this->db->bind(':orderId', (int)$orderId);
-                $this->db->bind(':productId', (int)($product->ProductID ?? 0));
-                $this->db->bind(':price', (float)($product->UnitPrice ?? 0));
-                $this->db->bind(':quantity', $quantity);
+                $this->db->query('SELECT ProductID, ProductName, UnitPrice, UnitsInStock
+                                  FROM products WHERE ProductID = :id FOR UPDATE');
+                $this->db->bind(':id', $productId);
+                $product = $this->db->singleRow();
 
-                if (!$this->db->execute()) {
-                    return false;
+                if (!$product) {
+                    throw new RuntimeException('Uno de los productos del carrito ya no existe.');
                 }
+                if ((int)$product->UnitsInStock < $quantity) {
+                    throw new RuntimeException('Stock insuficiente para "' . $product->ProductName
+                        . '" (disponible: ' . (int)$product->UnitsInStock . ').');
+                }
+
+                $lines[] = ['product' => $product, 'quantity' => $quantity];
+                $total  += (float)$product->UnitPrice * $quantity;
             }
 
+            if (empty($lines)) {
+                throw new RuntimeException('El carrito no tiene productos validos.');
+            }
+
+            // Encabezado. ShippedDate es NOT NULL en esta base: se usa la fecha de la orden.
+            $now      = time();
+            $orderDt  = date('Y-m-d H:i:s', $now);
+            $requiredDt = date('Y-m-d H:i:s', strtotime('+7 days', $now));
+
+            $this->db->query('INSERT INTO orders
+                                (CustomerID, EmployeeID, OrderDate, RequiredDate, ShippedDate, ShipVia, Freight,
+                                 ShipName, ShipAddress, ShipCity, ShipRegion, ShipPostalCode, ShipCountry)
+                              VALUES
+                                (:customer, :employee, :orderDate, :requiredDate, :shippedDate, :shipVia, :freight,
+                                 :shipName, :shipAddress, :shipCity, :shipRegion, :shipPostal, :shipCountry)');
+            $this->db->bind(':customer', $customerId);
+            $this->db->bind(':employee', $employeeId);
+            $this->db->bind(':orderDate', $orderDt);
+            $this->db->bind(':requiredDate', $requiredDt);
+            $this->db->bind(':shippedDate', $orderDt);
+            $this->db->bind(':shipVia', $shipperId);
+            $this->db->bind(':freight', number_format($total * 0.05, 2, '.', ''));
+            $this->db->bind(':shipName', $customer->CompanyName);
+            $this->db->bind(':shipAddress', $customer->Address);
+            $this->db->bind(':shipCity', $customer->City);
+            $this->db->bind(':shipRegion', $customer->Region);
+            $this->db->bind(':shipPostal', $customer->PostalCode);
+            $this->db->bind(':shipCountry', $customer->Country);
+            $this->db->execute();
+
+            $orderId = (int)$this->db->lastInsertId();
+
+            foreach ($lines as $line) {
+                // la tabla se llama order_details (con guion bajo)
+                $this->db->query('INSERT INTO order_details (OrderID, ProductID, UnitPrice, Quantity, Discount)
+                                  VALUES (:orderId, :productId, :price, :quantity, 0)');
+                $this->db->bind(':orderId', $orderId);
+                $this->db->bind(':productId', (int)$line['product']->ProductID);
+                $this->db->bind(':price', $line['product']->UnitPrice);
+                $this->db->bind(':quantity', $line['quantity']);
+                $this->db->execute();
+
+                $this->db->query('UPDATE products SET UnitsInStock = UnitsInStock - :qty WHERE ProductID = :id');
+                $this->db->bind(':qty', $line['quantity']);
+                $this->db->bind(':id', (int)$line['product']->ProductID);
+                $this->db->execute();
+            }
+
+            $this->db->commit();
             return $orderId;
-        } catch (Exception $e) {
+
+        } catch (PDOException $e) {
+            // PDOException hereda de RuntimeException, por eso se captura primero
+            $this->db->rollBack();
+            error_log('Sale::createOrder -> ' . $e->getMessage());
+            $this->error = 'No se pudo completar la venta. Verifique la conexión a la base de datos y la estructura de las tablas.';
+            return false;
+        } catch (RuntimeException $e) {
+            $this->db->rollBack();
+            $this->error = $e->getMessage();
             return false;
         }
     }

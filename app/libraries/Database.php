@@ -78,5 +78,21 @@ class Database{
 	public function lastInsertId(){
 		return $this->conex->lastInsertId();
 	}
+
+	//transaction support (a sale must be saved completely or not at all)
+	public function beginTransaction(){
+		return $this->conex->beginTransaction();
+	}
+
+	public function commit(){
+		return $this->conex->commit();
+	}
+
+	public function rollBack(){
+		if($this->conex->inTransaction()){
+			return $this->conex->rollBack();
+		}
+		return false;
+	}
 }
 ?>

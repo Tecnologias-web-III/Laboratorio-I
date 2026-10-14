@@ -47,18 +47,29 @@ class Products extends Controller {
             $_POST = filter_input_array(INPUT_POST, FILTER_SANITIZE_FULL_SPECIAL_CHARS);
 
             $data = [
-                'name' => trim($_POST['txtNombre']),
-                'category' => $_POST['cboCategoria'],
-                'price' => trim($_POST['txtPrecio']),
-                'stock' => trim($_POST['txtStock']),
+                'name' => trim($_POST['txtNombre'] ?? ''),
+                'category' => $_POST['cboCategoria'] ?? '',
+                'supplier' => $_POST['cboProveedor'] ?? '',
+                'price' => trim($_POST['txtPrecio'] ?? ''),
+                'stock' => trim($_POST['txtStock'] ?? ''),
                 'categories' => $this->categoryModel->getCategories(),
+                'suppliers' => $this->productModel->getSuppliers(),
                 'name_err' => '',
+                'category_err' => '',
+                'supplier_err' => '',
                 'price_err' => '',
-                'stock_err' => ''
+                'stock_err' => '',
+                'db_err' => ''
             ];
 
             if (empty($data['name'])) {
                 $data['name_err'] = 'Por favor ingrese el nombre del producto';
+            }
+            if (empty($data['category'])) {
+                $data['category_err'] = 'Seleccione una categoría';
+            }
+            if (empty($data['supplier'])) {
+                $data['supplier_err'] = 'Seleccione un proveedor';
             }
             if (!is_numeric($data['price']) || $data['price'] < 0) {
                 $data['price_err'] = 'El precio debe ser un número mayor o igual a 0';
@@ -67,26 +78,36 @@ class Products extends Controller {
                 $data['stock_err'] = 'El stock debe ser un número mayor o igual a 0';
             }
 
-            if (empty($data['name_err']) && empty($data['price_err']) && empty($data['stock_err'])) {
-                if ($this->productModel->addProduct($data)) {
-                    header('Location: ' . urlRoot . '/products');
-                    exit();
-                } else {
-                    die('Error al guardar el producto.');
+            if (empty($data['name_err']) && empty($data['category_err']) && empty($data['supplier_err'])
+                && empty($data['price_err']) && empty($data['stock_err'])) {
+                try {
+                    if ($this->productModel->addProduct($data)) {
+                        header('Location: ' . urlRoot . '/products');
+                        exit();
+                    }
+                    $data['db_err'] = 'No se pudo guardar el producto.';
+                } catch (PDOException $e) {
+                    // el detalle tecnico queda en el log de Apache/PHP, no en pantalla
+                    error_log('Products::create -> ' . $e->getMessage());
+                    $data['db_err'] = 'No se pudo guardar el producto. Revise la estructura de la tabla products.';
                 }
-            } else {
-                $this->view('products/insprod', $data);
             }
+            $this->view('products/insprod', $data);
         } else {
             $data = [
                 'name' => '',
                 'category' => '',
+                'supplier' => '',
                 'price' => '',
                 'stock' => '',
                 'categories' => $this->categoryModel->getCategories(),
+                'suppliers' => $this->productModel->getSuppliers(),
                 'name_err' => '',
+                'category_err' => '',
+                'supplier_err' => '',
                 'price_err' => '',
-                'stock_err' => ''
+                'stock_err' => '',
+                'db_err' => ''
             ];
             $this->view('products/insprod', $data);
         }

@@ -65,8 +65,8 @@
             <!-- Flete / Encomienda -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm font-semibold text-slate-700 mb-1">Empresa de Encomienda / Transporte</label>
-                    <select name="cmbShipper" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">Empresa de Encomienda / Transporte *</label>
+                    <select name="cmbShipper" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" required>
                         <option value="">-- Seleccionar Servicio de Encomienda --</option>
                         <?php foreach ($data['shippers'] as $ship): ?>
                             <option value="<?php echo $ship->ShipperID; ?>">
