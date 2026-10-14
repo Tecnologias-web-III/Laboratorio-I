@@ -53,6 +53,15 @@ class Sales extends Controller {
             exit();
         }
 
+        // No permitir poner en el carrito mas unidades de las que hay en stock
+        $inCart = (int)($_SESSION['sale_cart'][(int)$productId]['quantity'] ?? 0);
+        if (($inCart + $quantity) > (int)$product->UnitsInStock) {
+            $_SESSION['sale_error'] = 'Stock insuficiente para "' . $product->ProductName
+                . '" (disponible: ' . (int)$product->UnitsInStock . ', en el carrito: ' . $inCart . ').';
+            header('Location: ' . urlRoot . '/sales/index');
+            exit();
+        }
+
         if (!empty($customerId)) {
             $_SESSION['sale_customer'] = $customerId;
         }
@@ -88,7 +97,6 @@ class Sales extends Controller {
             exit();
         }
 
-        // Sanitización explícita campo por campo en lugar de usar filter_input_array sobre $_POST global
         $customerId = filter_input(INPUT_POST, 'customer_id', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
         $cart       = $_SESSION['sale_cart'] ?? [];
 
@@ -108,7 +116,8 @@ class Sales extends Controller {
             exit();
         }
 
-        $_SESSION['sale_error'] = 'No se pudo completar la venta. Verifique la conexión a la base de datos y la estructura de las tablas.';
+        $_SESSION['sale_error'] = $this->saleModel->getError()
+            ?: 'No se pudo completar la venta. Verifique la conexión a la base de datos y la estructura de las tablas.';
         header('Location: ' . urlRoot . '/sales/index');
         exit();
     }
@@ -127,23 +136,26 @@ class Sales extends Controller {
                 'err'         => ''
             ];
 
-            // Validaciones básicas de campos obligatorios
-            if (empty($data['employee_id']) || empty($data['customer_id']) || empty($data['product_id']) || empty($data['quantity'])) {
-                $data['err'] = 'Por favor complete todos los campos obligatorios del formulario.';
+            // Validaciones de campos obligatorios y de formato
+            $quantityOk = filter_var($data['quantity'], FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) !== false;
+
+            if (empty($data['employee_id']) || empty($data['customer_id']) || empty($data['product_id'])
+                || empty($data['shipper_id']) || !$quantityOk) {
+                $data['err'] = 'Por favor complete todos los campos obligatorios con valores válidos.';
+            } elseif (!is_numeric($data['freight']) || $data['freight'] < 0) {
+                $data['err'] = 'El costo de envío debe ser un número mayor o igual a 0.';
+            } elseif (!is_numeric($data['discount']) || $data['discount'] < 0 || $data['discount'] > 100) {
+                $data['err'] = 'El descuento debe estar entre 0 y 100.';
             }
 
             if (empty($data['err'])) {
-                // 1. Guardar encabezado de la orden
-                $orderId = $this->orderModel->createOrder($data);
-                
-                if ($orderId) {
-                    // 2. Guardar detalle del producto
-                    if ($this->orderModel->createOrderDetail($orderId, $data)) {
-                        header('Location: ' . urlRoot . '/sales/asistida?success=1');
-                        exit();
-                    }
+                // Ejecutar la venta asistida mediante transacción en el modelo para mayor seguridad
+                if ($this->orderModel->createAssistedSale($data)) {
+                    header('Location: ' . urlRoot . '/sales/asistida?success=1');
+                    exit();
+                } else {
+                    $data['err'] = $this->orderModel->getError() ?: 'Ocurrió un error al procesar la venta en la base de datos.';
                 }
-                $data['err'] = 'Ocurrió un error al procesar la venta en la base de datos.';
             }
 
             // Si hay error, recargar catálogos y re-mostrar vista con los datos actuales

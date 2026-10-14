@@ -1,15 +1,15 @@
 <?php
-    // Conexion local de XAMPP
-    define('db_Servidor' , '127.0.0.1');
+    // Conexion al servidor virtual
+    define('db_Servidor' , 'localhost');
     define('db_Basedato' , 'NorthWind');
-    define('db_Usuario'  , 'root');
-    define('db_Contra'   , 'Yugrant@13');
+    define('db_Usuario'  , 'dinos');
+    define('db_Contra'   , 'dinos123@');
     
     // Ruta absoluta
     define('appRoot', dirname(dirname(__FILE__)));
 
-    // Ruta relativa (CAMBIAR A mvcPHP)
-    define('urlRoot', 'http://localhost/mvcPHP');
+    // Ruta relativa para la máquina virtual
+    define('urlRoot', 'http://192.168.0.15/mvcPHP');
     
     // Nombre del sitio
     define('siteName', 'Ejemplo de MVC con PHP');
