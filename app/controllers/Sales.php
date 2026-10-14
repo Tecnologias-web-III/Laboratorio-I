@@ -88,6 +88,7 @@ class Sales extends Controller {
             exit();
         }
 
+        // Sanitización explícita campo por campo en lugar de usar filter_input_array sobre $_POST global
         $customerId = filter_input(INPUT_POST, 'customer_id', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
         $cart       = $_SESSION['sale_cart'] ?? [];
 
@@ -114,21 +115,19 @@ class Sales extends Controller {
 
     public function asistida() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $_POST = filter_input_array(INPUT_POST, FILTER_SANITIZE_FULL_SPECIAL_CHARS);
-
             $data = [
-                'employee_id' => trim($_POST['cmbEmpleado']),
-                'customer_id' => trim($_POST['cmbCliente']),
-                'shipper_id'  => trim($_POST['cmbShipper']),
+                'employee_id' => trim($_POST['cmbEmpleado'] ?? ''),
+                'customer_id' => trim($_POST['cmbCliente'] ?? ''),
+                'shipper_id'  => trim($_POST['cmbShipper'] ?? ''),
                 'freight'     => !empty($_POST['txtFlete']) ? trim($_POST['txtFlete']) : 0.00,
-                'product_id'  => trim($_POST['cmbProducto']),
-                'unit_price'  => trim($_POST['txtPrecio']),
-                'quantity'    => trim($_POST['txtCantidad']),
+                'product_id'  => trim($_POST['cmbProducto'] ?? ''),
+                'unit_price'  => trim($_POST['txtPrecio'] ?? ''),
+                'quantity'    => trim($_POST['txtCantidad'] ?? ''),
                 'discount'    => !empty($_POST['txtDescuento']) ? trim($_POST['txtDescuento']) : 0,
                 'err'         => ''
             ];
 
-            // Validaciones básicas de campos
+            // Validaciones básicas de campos obligatorios
             if (empty($data['employee_id']) || empty($data['customer_id']) || empty($data['product_id']) || empty($data['quantity'])) {
                 $data['err'] = 'Por favor complete todos los campos obligatorios del formulario.';
             }
@@ -147,53 +146,20 @@ class Sales extends Controller {
                 $data['err'] = 'Ocurrió un error al procesar la venta en la base de datos.';
             }
 
-            // Si hay error, recargar catálogos y re-mostrar vista
+            // Si hay error, recargar catálogos y re-mostrar vista con los datos actuales
             $data['employees'] = $this->orderModel->getEmployees();
             $data['customers'] = $this->orderModel->getCustomers();
             $data['products']  = $this->orderModel->getProducts();
             $data['shippers']  = $this->orderModel->getShippers();
+            
             $this->view('sales/asistida', $data);
 
         } else {
-            // Datos locales costarricenses por defecto en caso de que la BD no responda
+            // Carga inicial del formulario (GET)
             $employees = $this->orderModel->getEmployees();
-            if (empty($employees)) {
-                $employees = [
-                    (object)['EmployeeID' => 1, 'FirstName' => 'Kevin', 'LastName' => 'Alvarado'],
-                    (object)['EmployeeID' => 2, 'FirstName' => 'Mariana', 'LastName' => 'Solano'],
-                    (object)['EmployeeID' => 3, 'FirstName' => 'Bryan', 'LastName' => 'Brenes'],
-                    (object)['EmployeeID' => 4, 'FirstName' => 'Yuliana', 'LastName' => 'Castro']
-                ];
-            }
-
             $customers = $this->orderModel->getCustomers();
-            if (empty($customers)) {
-                $customers = [
-                    (object)['CustomerID' => 'ABAST', 'CompanyName' => 'Distribuidora El Abastecedor S.A.'],
-                    (object)['CustomerID' => 'TROP',  'CompanyName' => 'Supermercado La Tropicana'],
-                    (object)['CustomerID' => 'MARP',  'CompanyName' => 'Comercializadora El Mar de Puntarenas'],
-                    (object)['CustomerID' => 'PULP',  'CompanyName' => 'Pulpería La Central (Orotina)']
-                ];
-            }
-
-            $products = $this->orderModel->getProducts();
-            if (empty($products)) {
-                $products = [
-                    (object)['ProductID' => 1, 'ProductName' => 'Café Tarrazú Molido 500g', 'UnitPrice' => 3500.00, 'UnitsInStock' => 45],
-                    (object)['ProductID' => 2, 'ProductName' => 'Salsa Lizano 135ml', 'UnitPrice' => 1200.00, 'UnitsInStock' => 120],
-                    (object)['ProductID' => 3, 'ProductName' => 'Queso Turrialba 1kg', 'UnitPrice' => 4800.00, 'UnitsInStock' => 25],
-                    (object)['ProductID' => 4, 'ProductName' => 'Chicas Avena y Galletas', 'UnitPrice' => 850.00, 'UnitsInStock' => 80]
-                ];
-            }
-
-            $shippers = $this->orderModel->getShippers();
-            if (empty($shippers)) {
-                $shippers = [
-                    (object)['ShipperID' => 1, 'CompanyName' => 'Correos de Costa Rica'],
-                    (object)['ShipperID' => 2, 'CompanyName' => 'Encomiendas Caribe Express'],
-                    (object)['ShipperID' => 3, 'CompanyName' => 'Transportes Moín & Pacífico']
-                ];
-            }
+            $products  = $this->orderModel->getProducts();
+            $shippers  = $this->orderModel->getShippers();
 
             $data = [
                 'employees' => $employees,
@@ -202,6 +168,7 @@ class Sales extends Controller {
                 'shippers'  => $shippers,
                 'err'       => ''
             ];
+            
             $this->view('sales/asistida', $data);
         }
     }
