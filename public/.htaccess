@@ -1,9 +1,23 @@
 Options -Multiviews
+
+# Habilitar el motor de reescritura
 RewriteEngine On
 
+# Evita la exploración de directorios
 Options -Indexes
 
+# --- LISTENERS DE ERRORES HTTP ---
+# Asigna las vistas personalizadas para cada código de respuesta HTTP
+ErrorDocument 400 /mvcPHP/public/errors/400.php
+ErrorDocument 403 /mvcPHP/public/errors/403.php
+ErrorDocument 404 /mvcPHP/public/errors/404.php
+ErrorDocument 500 /mvcPHP/public/errors/500.php
+
+# --- REGLAS DE ENRUTAMIENTO MVC ---
+# Redirige peticiones a archivos/carpetas inexistentes hacia public/index.php
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-l
+
+# Redirige todas las solicitudes a index.php con el parámetro 'page' que contiene la ruta solicitada
 RewriteRule ^(.+)$ index.php?page=$1 [L,QSA]

@@ -169,6 +169,37 @@ class Sale {
         }
     }
 
+    public function getCustomerInvoicesByDateRange($customerId, $startDate, $endDate) {
+        $this->error = '';
+
+        try {
+            $this->db->query('SELECT
+                                o.OrderID, o.OrderDate, o.RequiredDate, o.ShippedDate,
+                                c.CustomerID, c.CompanyName, c.ContactName, c.ContactTitle,
+                                c.City, c.Country, c.PostalCode,
+                                e.FirstName, e.LastName,
+                                od.ProductID, p.ProductName, od.Quantity, od.UnitPrice, od.Discount,
+                                ROUND(od.UnitPrice * od.Quantity * (1 - od.Discount), 2) AS LineTotal
+                              FROM orders o
+                              INNER JOIN customers c ON c.CustomerID = o.CustomerID
+                              LEFT JOIN employees e ON e.EmployeeID = o.EmployeeID
+                              INNER JOIN order_details od ON od.OrderID = o.OrderID
+                              LEFT JOIN products p ON p.ProductID = od.ProductID
+                              WHERE o.CustomerID = :customer_id
+                                AND o.OrderDate BETWEEN :start_date AND :end_date
+                              ORDER BY o.OrderDate ASC, o.OrderID ASC, od.ProductID ASC');
+            $this->db->bind(':customer_id', $customerId);
+            $this->db->bind(':start_date', $startDate . ' 00:00:00');
+            $this->db->bind(':end_date', $endDate . ' 23:59:59');
+
+            return $this->db->resultSet();
+        } catch (PDOException $e) {
+            error_log('Sale::getCustomerInvoicesByDateRange -> ' . $e->getMessage());
+            $this->error = 'No se pudieron consultar las facturas del cliente.';
+            return false;
+        }
+    }
+
     public function getOrderSummary($orderId) {
         if (empty($orderId)) {
             return false;

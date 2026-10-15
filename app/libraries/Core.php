@@ -17,6 +17,8 @@
 
 						//unset first array position
 						unset($url[0]);
+					} else {
+						$this->showNotFound();
 					}
 				}
 				
@@ -31,6 +33,8 @@
 						
 						//unset second array position
 						unset($url[1]);
+					} else {
+						$this->showNotFound();
 					}
 				}
 				
@@ -43,6 +47,12 @@
 									  $this->params);
 				
 			}//end constructor method
+
+			private function showNotFound() {
+				http_response_code(404);
+				require(appRoot . '/../public/errors/404.php');
+				exit();
+			}
 			
 			//create function gerURL
 			//if wrong access try to use $_GET[ 'url' ]
